@@ -157,6 +157,21 @@ def check_mongo_server_output(binary, argument, fatal = True):
     return out
 
 
+def version_at_least(current, minimum):
+    """Return True if (and only if) current version is >= minimum.
+
+    Handles non-PEP440 server version strings by falling back to a leading
+    X.Y.Z extraction when direct parsing fails.
+    """
+    try:
+        return version.parse(current) >= version.parse(minimum)
+    except version.InvalidVersion:
+        match = re.match(r'^(\d+\.\d+\.\d+)', current)
+        if not match:
+            return False
+        return version.parse(match.group(1)) >= version.parse(minimum)
+
+
 class MLaunchTool(BaseCmdLineTool):
     UNDOCUMENTED_MONGOD_ARGS = ['--nopreallocj', '--wiredTigerEngineConfigString']
     UNSUPPORTED_MONGOS_ARGS = ['--wiredTigerCacheSizeGB', '--storageEngine']
@@ -369,7 +384,7 @@ class MLaunchTool(BaseCmdLineTool):
 
         # MongoDB 4.2 adds TLS options to replace the corresponding SSL options
         # https://docs.mongodb.com/manual/release-notes/4.2/#new-tls-options
-        if (version.parse(self.current_version) >= version.parse("4.2.0")):
+        if version_at_least(self.current_version, "4.2.0"):
             # tls
             tls_args = init_parser.add_argument_group('TLS options')
             tls_args.add_argument('--tlsCAFile',
