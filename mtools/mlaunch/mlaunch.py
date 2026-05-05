@@ -157,19 +157,19 @@ def check_mongo_server_output(binary, argument, fatal = True):
     return out
 
 
-def version_at_least(current, minimum):
-    """Return True if (and only if) current version is >= minimum.
+def version_parse_lax(raw_version):
+    """Parse a mongod version string with fallback trimming.
 
-    Handles non-PEP440 server version strings by falling back to a leading
-    X.Y.Z extraction when direct parsing fails.
+    If parsing fails due to non-PEP440 suffixes, trim to leading X.Y.Z and
+    parse that version instead.
     """
     try:
-        return version.parse(current) >= version.parse(minimum)
+        return version.parse(raw_version)
     except version.InvalidVersion:
-        match = re.match(r'^(\d+\.\d+\.\d+)', current)
+        match = re.match(r'^(\d+\.\d+\.\d+)', raw_version)
         if not match:
-            return False
-        return version.parse(match.group(1)) >= version.parse(minimum)
+            raise
+        return version.parse(match.group(1))
 
 
 class MLaunchTool(BaseCmdLineTool):
@@ -384,7 +384,7 @@ class MLaunchTool(BaseCmdLineTool):
 
         # MongoDB 4.2 adds TLS options to replace the corresponding SSL options
         # https://docs.mongodb.com/manual/release-notes/4.2/#new-tls-options
-        if version_at_least(self.current_version, "4.2.0"):
+        if version_parse_lax(self.current_version) >= version.parse("4.2.0"):
             # tls
             tls_args = init_parser.add_argument_group('TLS options')
             tls_args.add_argument('--tlsCAFile',
@@ -679,8 +679,8 @@ class MLaunchTool(BaseCmdLineTool):
             self.args['config'] = 1
 
         # add the 'csrs' parameter as default for MongoDB >= 3.3.0
-        if (version.parse(self.current_version) >= version.parse("3.3.0") or
-                version.parse(self.current_version) == version.parse("0.0.0")):
+        if (version_parse_lax(self.current_version) >= version.parse("3.3.0") or
+            version_parse_lax(self.current_version) == version.parse("0.0.0")):
             self.args['csrs'] = True
 
         # construct startup strings
@@ -2128,7 +2128,7 @@ class MLaunchTool(BaseCmdLineTool):
 
         # Exit with error if hostname is specified but not bind_ip options
         if (self.args['hostname'] != 'localhost'
-                and version.parse(self.current_version) >= version.parse("3.6.0")
+            and version_parse_lax(self.current_version) >= version.parse("3.6.0")
                 and (self.args['sharded'] or self.args['replicaset'])
                 and '--bind_ip' not in extra):
             os.removedirs(dbpath)
