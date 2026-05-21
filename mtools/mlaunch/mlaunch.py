@@ -2128,7 +2128,7 @@ class MLaunchTool(BaseCmdLineTool):
 
         # Exit with error if hostname is specified but not bind_ip options
         if (self.args['hostname'] != 'localhost'
-            and version_parse_lax(self.current_version) >= version.parse("3.6.0")
+                and version_parse_lax(self.current_version) >= version.parse("3.6.0")
                 and (self.args['sharded'] or self.args['replicaset'])
                 and '--bind_ip' not in extra):
             os.removedirs(dbpath)
